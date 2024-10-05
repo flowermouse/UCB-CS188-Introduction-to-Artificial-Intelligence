@@ -389,4 +389,7 @@ def as_scalar(node):
     assert node.data.size == 1, (
         "Node has shape {}, cannot convert to a scalar".format(
             format_shape(node.data.shape)))
-    return np.ndarray.item(node.data)
+    if isinstance(node.data, np.ndarray):
+        return node.data.item()
+    else:
+        return node.data

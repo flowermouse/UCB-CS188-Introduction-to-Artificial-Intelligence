@@ -67,6 +67,15 @@ class RegressionModel(object):
     def __init__(self):
         # Initialize your model parameters here
         "*** YOUR CODE HERE ***"
+        self.w1 = nn.Parameter(1, 20)
+        self.w2 = nn.Parameter(20, 100)
+        self.w3 = nn.Parameter(100, 50)
+        self.w4 = nn.Parameter(50, 1)
+
+        self.b1 = nn.Parameter(1, 20)
+        self.b2 = nn.Parameter(1, 100)
+        self.b3 = nn.Parameter(1, 50)
+        self.b4 = nn.Parameter(1, 1)
 
     def run(self, x):
         """
@@ -78,6 +87,12 @@ class RegressionModel(object):
             A node with shape (batch_size x 1) containing predicted y-values
         """
         "*** YOUR CODE HERE ***"
+        print(x)
+        layer1 = nn.ReLU(nn.AddBias(nn.Linear(x, self.w1), self.b1))
+        layer2 = nn.ReLU(nn.AddBias(nn.Linear(layer1, self.w2), self.b2))
+        layer3 = nn.ReLU(nn.AddBias(nn.Linear(layer2, self.w3), self.b3))
+        layer4 = nn.AddBias(nn.Linear(layer3, self.w4), self.b4)
+        return layer4
 
     def get_loss(self, x, y):
         """
@@ -90,12 +105,31 @@ class RegressionModel(object):
         Returns: a loss node
         """
         "*** YOUR CODE HERE ***"
+        predicted = self.run(x)
+        return nn.SquareLoss(predicted, y)
 
     def train(self, dataset):
         """
         Trains the model.
         """
         "*** YOUR CODE HERE ***"
+        batch_size = len(dataset.y)
+        # notice: using loss function, the update method is to substract gradient times alpha,
+        # so the learning rate should be set to negative
+        alpha = -0.05
+        for x, y in dataset.iterate_forever(batch_size):
+            loss = self.get_loss(x, y)
+            grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3 \
+                = nn.gradients(loss, [self.w1, self.b1, self.w2, self.b2, self.w3, self.b3])
+            self.w1.update(grad_w1, alpha)
+            self.w2.update(grad_w2, alpha)
+            self.b1.update(grad_b1, alpha)
+            self.b2.update(grad_b2, alpha)
+            self.w3.update(grad_w3, alpha)
+            self.b3.update(grad_b3, alpha)
+            loss = nn.as_scalar(loss)
+            if loss < 0.0010:
+                break
 
 class DigitClassificationModel(object):
     """
