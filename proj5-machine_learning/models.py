@@ -236,6 +236,20 @@ class LanguageIDModel(object):
 
         # Initialize your model parameters here
         "*** YOUR CODE HERE ***"
+        self.iw1 = nn.Parameter(self.num_chars, 4*self.num_chars)
+        self.iw2 = nn.Parameter(4*self.num_chars, 8*self.num_chars)
+
+        # self.ib1 = nn.Parameter(1, 8*self.num_chars)
+        # self.ib2 = nn.Parameter(1, len(self.languages))
+
+        self.rw1 = nn.Parameter(8*self.num_chars, 8*self.num_chars)
+        self.rw2 = nn.Parameter(8*self.num_chars, 8*self.num_chars)
+
+        # self.rb1 = nn.Parameter(1, 8*self.num_chars)
+        # self.rb2 = nn.Parameter(1, len(self.languages))
+
+        self.ow = nn.Parameter(8*self.num_chars, len(self.languages))
+        self.ob = nn.Parameter(1, len(self.languages))
 
     def run(self, xs):
         """
@@ -267,7 +281,16 @@ class LanguageIDModel(object):
                 (also called logits)
         """
         "*** YOUR CODE HERE ***"
-
+        # f_initial
+        h = nn.ReLU(nn.Linear(nn.ReLU(nn.Linear(xs[0], self.iw1)), self.iw2))
+        # f
+        for char in xs[1:]:
+            new_x = nn.ReLU(nn.Linear(nn.ReLU(nn.Linear(char, self.iw1)), self.iw2))
+            h = nn.ReLU(nn.Linear(nn.ReLU(nn.Linear(h, self.rw1)), self.rw2))
+            h = nn.Add(new_x, h)
+        output = nn.AddBias(nn.Linear(h, self.ow), self.ob)
+        return output
+        
     def get_loss(self, xs, y):
         """
         Computes the loss for a batch of examples.
@@ -283,9 +306,26 @@ class LanguageIDModel(object):
         Returns: a loss node
         """
         "*** YOUR CODE HERE ***"
+        predicted = self.run(xs)
+        return nn.SoftmaxLoss(predicted, y)
 
     def train(self, dataset):
         """
         Trains the model.
         """
         "*** YOUR CODE HERE ***"
+        batch_size = 100
+        # notice: using loss function, the update method is to substract gradient times alpha,
+        # so the learning rate should be set to negative
+        alpha = -0.1
+        while dataset.get_validation_accuracy() < 0.85:
+            for x, y in dataset.iterate_once(batch_size):
+                loss = self.get_loss(x, y)
+                grad_iw1, grad_iw2, grad_rw1, grad_rw2, grad_ow, grad_ob \
+                    = nn.gradients(loss, [self.iw1, self.iw2, self.rw1, self.rw2, self.ow, self.ob])
+                self.iw1.update(grad_iw1, alpha)
+                self.iw2.update(grad_iw2, alpha)
+                self.rw1.update(grad_rw1, alpha)
+                self.rw2.update(grad_rw2, alpha)
+                self.ow.update(grad_ow, alpha)
+                self.ob.update(grad_ob, alpha)
